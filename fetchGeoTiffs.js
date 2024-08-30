@@ -106,7 +106,8 @@ function mergeGeoTIFFs(outputFilePath) {
         if (error) {
           console.error(`Error merging GeoTIFFs: ${stderr}`)
           reject(error)
-        } else {
+        } 
+        else {
           console.log(`GeoTIFFs merged into ${outputFilePath}`)
           resolve(outputFilePath)
         }
@@ -130,7 +131,8 @@ function cropGeoTIFF(inputFilePath, outputFilePath, bbox) {
       if (error) {
         console.error(`Error cropping GeoTIFF: ${stderr}`)
         reject(error)
-      } else {
+      } 
+      else {
         console.log(`GeoTIFF cropped to ${outputFilePath}`)
         resolve(outputFilePath)
       }
@@ -147,7 +149,8 @@ function reprojectGeoTIFF(inputFilePath, outputFilePath, targetCRS) {
       if (error) {
         console.error(`Error reprojecting GeoTIFF: ${stderr}`)
         reject(error)
-      } else {
+      } 
+      else {
         console.log(`GeoTIFF reprojected to ${outputFilePath}`)
         resolve(outputFilePath)
       }
@@ -234,7 +237,8 @@ async function processGeoTIFFs() {
           if (existingPoint.hasKnownCRS) {
             console.log(`Discarding ${file} as it overlaps with ${existingPoint.file}`)
             fs.unlinkSync(filePath)
-          } else {
+          } 
+          else {
             console.log(`Keeping ${file} and discarding ${existingPoint.file}`)
             fs.unlinkSync(existingPoint.filePath)
             existingPoint.file = file
@@ -302,7 +306,8 @@ async function processGeoTIFFs() {
 
       let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
       await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
-    } else if (files.length === 1) {
+    } 
+    else if (files.length === 1) {
       let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0])
       let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
       await cropGeoTIFF(singleFilePath, croppedFilePath, bbox)
