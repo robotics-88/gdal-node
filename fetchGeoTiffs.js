@@ -210,7 +210,9 @@ async function cleanupDownloadedFiles() {
     console.error(`Cleanup failed: ${error}`)
   }
 }
-// Main function to process GeoTIFFs
+// Main function to process GeoTIFFs 
+  //THIS IS VERY UNTESTED -- it runs, but I don't know yet if it is doing what I hope
+  // the example burnUnit I've been working with only pulls one map so this just runs right through
 async function processGeoTIFFs() {
   let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'))
   
@@ -271,7 +273,7 @@ async function processGeoTIFFs() {
   console.log('All GeoTIFF files processed successfully!')
 }
 
-// Example usage
+// Run the dang thing...
 (async () => {
   let bbox = {
     minX: -94.8035,
