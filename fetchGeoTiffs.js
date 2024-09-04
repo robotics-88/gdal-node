@@ -6,9 +6,9 @@ const  utmObj  = require('utm-latlng')
 
 // Define directories
 const DOWNLOAD_FOLDER = path.resolve(__dirname, 'downloads')
-const REPROJECTED_FOLDER = path.resolve(__dirname, 'reprojected')
 
-// Ensure directories exist
+
+// Ensure directory exists
 if (!fs.existsSync(DOWNLOAD_FOLDER)) {
   fs.mkdirSync(DOWNLOAD_FOLDER)
 }
@@ -155,8 +155,7 @@ function deleteFilesInFolder(folderPath) {
 
       Promise.all(deletePromises)
         .then(() => {
-          // Optionally, delete the folder itself if needed
-          fs.rmdir(folderPath, { recursive: true }, (err) => {
+          fs.rm(folderPath, { recursive: true }, (err) => {
             if (err) {
               console.error(`Failed to delete folder ${folderPath}: ${err.message}`)
               return reject(err)
@@ -170,15 +169,12 @@ function deleteFilesInFolder(folderPath) {
   })
 }
 
-// Function to clean up downloaded GeoTIFF files and the 'reprojected' folder
+// Function to clean up downloaded GeoTIFF files
 async function cleanupDownloadedFiles() {
   try {
     await deleteFilesInFolder(DOWNLOAD_FOLDER)
     console.log(`Cleaned up download folder: ${DOWNLOAD_FOLDER}`)
     
-    let REPROJECTED_FOLDER = path.join(__dirname, 'reprojected')
-    await deleteFilesInFolder(REPROJECTED_FOLDER)
-    console.log(`Cleaned up reprojected folder: ${REPROJECTED_FOLDER}`)
   } catch (error) {
     console.error(`Cleanup failed: ${error}`)
   }
