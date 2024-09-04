@@ -26,7 +26,6 @@ function calculateDistance(point1, point2) {
 
 // Function to make the API request and get the GeoTIFF download URLs
 async function fetchGeoTIFFUrls(apiUrl) {
-  console.log(utmObj)
   try {
     let response = await axios.get(apiUrl)
     return response.data.items.map(item => item.downloadURL)
@@ -275,14 +274,51 @@ async function processGeoTIFFs() {
 
 // Run the dang thing...
 (async () => {
+  // Initialize bbox with extreme values
   let bbox = {
-    minX: -94.8035,
-    minY: 29.2885,
-    maxX: -94.802,
-    maxY: 29.29,
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
   }
 
-  let apiUrl = 'https://tnmaccess.nationalmap.gov/api/v1/products?polygon=-94.80330526828767%2029.289363053562944,-94.80306118726732%2029.288610072690517,-94.8009502887726%2029.289171301196763,-94.80117827653886%2029.289910247360375&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodExtents=&prodFormats=GeoTIFF&q=Elevation&outputFormat=JSON'
+  let args = process.argv.slice(2)
+
+  if (args.length === 0 || args.length % 2 !== 0) {
+      console.log('Usage: npm run start-with-args -- <latitude1> <longitude1> <latitude2> <longitude2> ...');
+      process.exit(1);
+  }
+
+  // Concatenate all lat/lng pairs into a single string separated by spaces
+  let coordinatesString = ''
+  for (let i = 0; i < args.length; i += 2) {
+    let longitude = parseFloat(args[i])
+    let latitude = parseFloat(args[i + 1])
+
+    // Update bbox with current latitude and longitude
+    if (longitude < bbox.minX) bbox.minX = longitude
+    if (longitude > bbox.maxX) bbox.maxX = longitude
+    if (latitude < bbox.minY) bbox.minY = latitude
+    if (latitude > bbox.maxY) bbox.maxY = latitude
+
+    coordinatesString += `${longitude}%20${latitude},`
+  }
+
+  // Trim any trailing space
+  coordinatesString = coordinatesString.trim()
+
+  // Remove the last comma, if present
+  if (coordinatesString.endsWith(',')) {
+    coordinatesString = coordinatesString.slice(0, -1);
+  }
+
+  // Construct the API URL with the concatenated coordinates string
+  console.log('Constructed coordinates string: ', coordinatesString)
+  console.log('bbox: ', bbox)
+  let apiUrl = `https://tnmaccess.nationalmap.gov/api/v1/products?polygon=${coordinatesString}&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodFormats=GeoTIFF&outputFormat=JSON`
+  
+  console.log('Constructed apiurl: ', apiUrl)
+  
 
   try {
     let urls = await fetchGeoTIFFUrls(apiUrl)
@@ -296,7 +332,7 @@ async function processGeoTIFFs() {
       })
     )
 
-    await processGeoTIFFs()
+    //await processGeoTIFFs()
 
     let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'))
     if (files.length > 1) {
@@ -306,16 +342,16 @@ async function processGeoTIFFs() {
       let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
       await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox)
 
-      let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
-      await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
+      // let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
+      // await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
     } 
     else if (files.length === 1) {
       let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0])
       let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
       await cropGeoTIFF(singleFilePath, croppedFilePath, bbox)
 
-      let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
-      await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
+      // let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
+      // await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
     }
 
     await cleanupDownloadedFiles()
