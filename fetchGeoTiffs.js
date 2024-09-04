@@ -3,7 +3,6 @@ const fs = require('fs')
 const path = require('path')
 const { exec } = require('child_process')
 const  utmObj  = require('utm-latlng')
-const gdal = require('gdal')
 
 // Define directories
 const DOWNLOAD_FOLDER = path.resolve(__dirname, 'downloads')
@@ -12,16 +11,6 @@ const REPROJECTED_FOLDER = path.resolve(__dirname, 'reprojected')
 // Ensure directories exist
 if (!fs.existsSync(DOWNLOAD_FOLDER)) {
   fs.mkdirSync(DOWNLOAD_FOLDER)
-}
-if (!fs.existsSync(REPROJECTED_FOLDER)) {
-  fs.mkdirSync(REPROJECTED_FOLDER)
-}
-
-// Function to calculate the Euclidean distance between two UTM points
-function calculateDistance(point1, point2) {
-  let dx = point1.utmX - point2.utmX
-  let dy = point1.utmY - point2.utmY
-  return Math.sqrt(dx * dx + dy * dy)
 }
 
 // Function to make the API request and get the GeoTIFF download URLs
@@ -33,6 +22,24 @@ async function fetchGeoTIFFUrls(apiUrl) {
     console.error('Failed to fetch GeoTIFF URLs:', error.message)
     throw error
   }
+}
+
+//dynamically adjust filename if old files weren't cleared out
+function generateUniqueFilename(filePath) {
+  let ext = path.extname(filePath); // Get the file extension (e.g., '.tif')
+  let baseName = path.basename(filePath, ext); // Get the base name (e.g., 'merged')
+  let dirName = path.dirname(filePath); // Get the directory name
+
+  let uniqueFilePath = filePath;
+  let counter = 1;
+
+  // Loop until a unique filename is found
+  while (fs.existsSync(uniqueFilePath)) {
+    uniqueFilePath = path.join(dirName, `${baseName}_${counter}${ext}`);
+    counter++;
+  }
+
+  return uniqueFilePath;
 }
 
 // Function to download a GeoTIFF file
@@ -69,21 +76,6 @@ async function downloadGeoTIFF(url, outputPath) {
       reject(error)
     }
   })
-}
-
-// Function to get GeoTIFF metadata (assuming it returns UTM coordinates)
-  //IS THIS SAFE TO ASSUME?  With the 1m resolution it seems fairly consistent
-async function getGeoTIFFMetadata(filePath) {
-  try {
-    let dataset = gdal.open(filePath)
-    let geoTransform = dataset.geoTransform
-    let crs = dataset.srs.toProj4()
-    let x = geoTransform[0] + geoTransform[1] * (dataset.rasterSize.x / 2)
-    let y = geoTransform[3] + geoTransform[5] * (dataset.rasterSize.y / 2)
-    return { utmX: x, utmY: y, crs }
-  } catch (err) {
-    throw new Error(`Failed to read metadata: ${err.message}`)
-  }
 }
 
 // Function to merge GeoTIFFs
@@ -133,24 +125,6 @@ function cropGeoTIFF(inputFilePath, outputFilePath, bbox) {
       } 
       else {
         console.log(`GeoTIFF cropped to ${outputFilePath}`)
-        resolve(outputFilePath)
-      }
-    })
-  })
-}
-
-// Function to reproject GeoTIFF
-function reprojectGeoTIFF(inputFilePath, outputFilePath, targetCRS) {
-  return new Promise((resolve, reject) => {
-    let reprojectCommand = `gdalwarp -t_srs ${targetCRS} ${inputFilePath} ${outputFilePath}`
-
-    exec(reprojectCommand, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`Error reprojecting GeoTIFF: ${stderr}`)
-        reject(error)
-      } 
-      else {
-        console.log(`GeoTIFF reprojected to ${outputFilePath}`)
         resolve(outputFilePath)
       }
     })
@@ -209,68 +183,6 @@ async function cleanupDownloadedFiles() {
     console.error(`Cleanup failed: ${error}`)
   }
 }
-// Main function to process GeoTIFFs 
-  //THIS IS VERY UNTESTED -- it runs, but I don't know yet if it is doing what I hope
-  // the example burnUnit I've been working with only pulls one map so this just runs right through
-async function processGeoTIFFs() {
-  let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'))
-  
-  if (files.length === 0) {
-    console.log('No GeoTIFF files found.')
-    return
-  }
-
-  let centerPoints = []
-  
-  for (let file of files) {
-    let filePath = path.join(DOWNLOAD_FOLDER, file)
-    try {
-      let { utmX, utmY, crs } = await getGeoTIFFMetadata(filePath)
-      console.log(`Processing ${file}: UTM (${utmX}, ${utmY}), CRS: ${crs}`)
-      
-      let isWithin1km = false
-      let utmPoint = { utmX, utmY }
-
-      for (let existingPoint of centerPoints) {
-        let distance = calculateDistance(utmPoint, existingPoint.utmPoint)
-        if (distance < 1000) {
-          isWithin1km = true
-          if (existingPoint.hasKnownCRS) {
-            console.log(`Discarding ${file} as it overlaps with ${existingPoint.file}`)
-            fs.unlinkSync(filePath)
-          } 
-          else {
-            console.log(`Keeping ${file} and discarding ${existingPoint.file}`)
-            fs.unlinkSync(existingPoint.filePath)
-            existingPoint.file = file
-            existingPoint.filePath = filePath
-            existingPoint.utmPoint = utmPoint
-            existingPoint.hasKnownCRS = crs !== 'Unknown'
-          }
-          break
-        }
-      }
-
-      if (!isWithin1km) {
-        centerPoints.push({ file, filePath, utmPoint, hasKnownCRS: crs !== 'Unknown' })
-      }
-    } catch (err) {
-      console.error(`Failed to process ${file}: ${err.message}`)
-    }
-  }
-
-  for (let i = 0; i < centerPoints.length; i++) {
-    for (let j = i + 1; j < centerPoints.length; j++) {
-      let distance = calculateDistance(centerPoints[i].utmPoint, centerPoints[j].utmPoint)
-      if (distance >= 1000) {
-        console.error(`Error: ${centerPoints[i].file} and ${centerPoints[j].file} are more than 1 km apart.`)
-        return
-      }
-    }
-  }
-
-  console.log('All GeoTIFF files processed successfully!')
-}
 
 // Run the dang thing...
 (async () => {
@@ -280,32 +192,32 @@ async function processGeoTIFFs() {
     minY: Infinity,
     maxX: -Infinity,
     maxY: -Infinity
-  }
+  };
 
-  let args = process.argv.slice(2)
+  let args = process.argv.slice(2);
 
   if (args.length === 0 || args.length % 2 !== 0) {
-      console.log('Usage: npm run start-with-args -- <latitude1> <longitude1> <latitude2> <longitude2> ...');
-      process.exit(1);
+    console.log('Usage: npm run start-with-args -- <latitude1> <longitude1> <latitude2> <longitude2> ...');
+    process.exit(1);
   }
 
   // Concatenate all lat/lng pairs into a single string separated by spaces
-  let coordinatesString = ''
+  let coordinatesString = '';
   for (let i = 0; i < args.length; i += 2) {
-    let longitude = parseFloat(args[i])
-    let latitude = parseFloat(args[i + 1])
+    let longitude = parseFloat(args[i]);
+    let latitude = parseFloat(args[i + 1]);
 
     // Update bbox with current latitude and longitude
-    if (longitude < bbox.minX) bbox.minX = longitude
-    if (longitude > bbox.maxX) bbox.maxX = longitude
-    if (latitude < bbox.minY) bbox.minY = latitude
-    if (latitude > bbox.maxY) bbox.maxY = latitude
+    if (longitude < bbox.minX) bbox.minX = longitude;
+    if (longitude > bbox.maxX) bbox.maxX = longitude;
+    if (latitude < bbox.minY) bbox.minY = latitude;
+    if (latitude > bbox.maxY) bbox.maxY = latitude;
 
-    coordinatesString += `${longitude}%20${latitude},`
+    coordinatesString += `${longitude}%20${latitude},`;
   }
 
   // Trim any trailing space
-  coordinatesString = coordinatesString.trim()
+  coordinatesString = coordinatesString.trim();
 
   // Remove the last comma, if present
   if (coordinatesString.endsWith(',')) {
@@ -313,51 +225,43 @@ async function processGeoTIFFs() {
   }
 
   // Construct the API URL with the concatenated coordinates string
-  console.log('Constructed coordinates string: ', coordinatesString)
-  console.log('bbox: ', bbox)
-  let apiUrl = `https://tnmaccess.nationalmap.gov/api/v1/products?polygon=${coordinatesString}&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodFormats=GeoTIFF&outputFormat=JSON`
-  
-  console.log('Constructed apiurl: ', apiUrl)
-  
+  let apiUrl = `https://tnmaccess.nationalmap.gov/api/v1/products?polygon=${coordinatesString}&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodFormats=GeoTIFF&outputFormat=JSON`;
 
   try {
-    let urls = await fetchGeoTIFFUrls(apiUrl)
-    console.log(urls)
-   // Use Promise.all to wait for all downloads to complete
-   await Promise.all(
+    let urls = await fetchGeoTIFFUrls(apiUrl);
+    console.log(urls);
+
+    // Use Promise.all to wait for all downloads to complete
+    await Promise.all(
       urls.map(async (url) => {
-        let fileName = path.basename(url)
-        let outputPath = path.join(DOWNLOAD_FOLDER, fileName)
-        await downloadGeoTIFF(url, outputPath)
+        let fileName = path.basename(url);
+        let outputPath = path.join(DOWNLOAD_FOLDER, fileName);
+        await downloadGeoTIFF(url, outputPath);
       })
-    )
+    );
 
-    //await processGeoTIFFs()
+    let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'));
 
-    let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'))
     if (files.length > 1) {
-      let mergedFilePath = path.resolve(__dirname, 'merged.tif')
-      await mergeGeoTIFFs(mergedFilePath)
+      let mergedFilePath = path.resolve(__dirname, 'merged.tif');
+      mergedFilePath = generateUniqueFilename(mergedFilePath); // Generate a unique filename
+      await mergeGeoTIFFs(mergedFilePath);
 
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
-      await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox)
+      let croppedFilePath = path.resolve(__dirname, 'cropped.tif');
+      croppedFilePath = generateUniqueFilename(croppedFilePath); // Generate a unique filename
+      await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox);
 
-      // let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
-      // await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
-    } 
-    else if (files.length === 1) {
-      let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0])
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
-      await cropGeoTIFF(singleFilePath, croppedFilePath, bbox)
-
-      // let reprojectedFilePath = path.resolve(REPROJECTED_FOLDER, 'reprojected.tif')
-      // await reprojectGeoTIFF(croppedFilePath, reprojectedFilePath, 'EPSG:4326')
+    } else if (files.length === 1) {
+      let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0]);
+      let croppedFilePath = path.resolve(__dirname, 'cropped.tif');
+      croppedFilePath = generateUniqueFilename(croppedFilePath); // Generate a unique filename
+      await cropGeoTIFF(singleFilePath, croppedFilePath, bbox);
     }
 
-    await cleanupDownloadedFiles()
+    await cleanupDownloadedFiles();
 
-    console.log('Processing completed successfully.')
+    console.log('Processing completed successfully.');
   } catch (error) {
-    console.error('An error occurred during processing:', error.message)
+    console.error('An error occurred during processing:', error.message);
   }
-})()
+})();
