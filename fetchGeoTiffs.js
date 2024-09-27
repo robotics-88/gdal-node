@@ -26,20 +26,20 @@ async function fetchGeoTIFFUrls(apiUrl) {
 
 //dynamically adjust filename if old files weren't cleared out
 function generateUniqueFilename(filePath) {
-  let ext = path.extname(filePath); // Get the file extension (e.g., '.tif')
-  let baseName = path.basename(filePath, ext); // Get the base name (e.g., 'merged')
-  let dirName = path.dirname(filePath); // Get the directory name
+  let ext = path.extname(filePath) // Get the file extension (e.g., '.tif')
+  let baseName = path.basename(filePath, ext) // Get the base name (e.g., 'merged')
+  let dirName = path.dirname(filePath) // Get the directory name
 
-  let uniqueFilePath = filePath;
-  let counter = 1;
+  let uniqueFilePath = filePath
+  let counter = 1
 
   // Loop until a unique filename is found
   while (fs.existsSync(uniqueFilePath)) {
-    uniqueFilePath = path.join(dirName, `${baseName}_${counter}${ext}`);
-    counter++;
+    uniqueFilePath = path.join(dirName, `${baseName}_${counter}${ext}`)
+    counter++
   }
 
-  return uniqueFilePath;
+  return uniqueFilePath
 }
 
 // Function to download a GeoTIFF file
@@ -188,76 +188,76 @@ async function cleanupDownloadedFiles() {
     minY: Infinity,
     maxX: -Infinity,
     maxY: -Infinity
-  };
+  }
 
-  let args = process.argv.slice(2);
+  let args = process.argv.slice(2)
 
   if (args.length === 0 || args.length % 2 !== 0) {
-    console.log('Usage: npm run start-with-args -- <latitude1> <longitude1> <latitude2> <longitude2> ...');
-    process.exit(1);
+    console.log('Usage: npm run start-with-args -- <latitude1> <longitude1> <latitude2> <longitude2> ...')
+    process.exit(1)
   }
 
   // Concatenate all lat/lng pairs into a single string separated by spaces
-  let coordinatesString = '';
+  let coordinatesString = ''
   for (let i = 0; i < args.length; i += 2) {
-    let longitude = parseFloat(args[i]);
-    let latitude = parseFloat(args[i + 1]);
+    let longitude = parseFloat(args[i])
+    let latitude = parseFloat(args[i + 1])
 
     // Update bbox with current latitude and longitude
-    if (longitude < bbox.minX) bbox.minX = longitude;
-    if (longitude > bbox.maxX) bbox.maxX = longitude;
-    if (latitude < bbox.minY) bbox.minY = latitude;
-    if (latitude > bbox.maxY) bbox.maxY = latitude;
+    if (longitude < bbox.minX) bbox.minX = longitude
+    if (longitude > bbox.maxX) bbox.maxX = longitude
+    if (latitude < bbox.minY) bbox.minY = latitude
+    if (latitude > bbox.maxY) bbox.maxY = latitude
 
-    coordinatesString += `${longitude}%20${latitude},`;
+    coordinatesString += `${longitude}%20${latitude},`
   }
 
   // Trim any trailing space
-  coordinatesString = coordinatesString.trim();
+  coordinatesString = coordinatesString.trim()
 
   // Remove the last comma, if present
   if (coordinatesString.endsWith(',')) {
-    coordinatesString = coordinatesString.slice(0, -1);
+    coordinatesString = coordinatesString.slice(0, -1)
   }
 
   // Construct the API URL with the concatenated coordinates string
-  let apiUrl = `https://tnmaccess.nationalmap.gov/api/v1/products?polygon=${coordinatesString}&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodFormats=GeoTIFF&outputFormat=JSON`;
+  let apiUrl = `https://tnmaccess.nationalmap.gov/api/v1/products?polygon=${coordinatesString}&datasets=Digital%20Elevation%20Model%20%28DEM%29%201%20meter&prodFormats=GeoTIFF&outputFormat=JSON`
 
   try {
-    let urls = await fetchGeoTIFFUrls(apiUrl);
-    console.log(urls);
+    let urls = await fetchGeoTIFFUrls(apiUrl)
+    console.log(urls)
 
     // Use Promise.all to wait for all downloads to complete
     await Promise.all(
       urls.map(async (url) => {
-        let fileName = path.basename(url);
-        let outputPath = path.join(DOWNLOAD_FOLDER, fileName);
-        await downloadGeoTIFF(url, outputPath);
+        let fileName = path.basename(url)
+        let outputPath = path.join(DOWNLOAD_FOLDER, fileName)
+        await downloadGeoTIFF(url, outputPath)
       })
-    );
+    )
 
-    let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'));
+    let files = fs.readdirSync(DOWNLOAD_FOLDER).filter(file => file.endsWith('.tif'))
 
     if (files.length > 1) {
-      let mergedFilePath = path.resolve(__dirname, 'merged.tif');
-      mergedFilePath = generateUniqueFilename(mergedFilePath); // Generate a unique filename
-      await mergeGeoTIFFs(mergedFilePath);
+      let mergedFilePath = path.resolve(__dirname, 'merged.tif')
+      mergedFilePath = generateUniqueFilename(mergedFilePath) // Generate a unique filename
+      await mergeGeoTIFFs(mergedFilePath)
 
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif');
-      croppedFilePath = generateUniqueFilename(croppedFilePath); // Generate a unique filename
-      await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox);
+      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
+      croppedFilePath = generateUniqueFilename(croppedFilePath) // Generate a unique filename
+      await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox)
 
     } else if (files.length === 1) {
-      let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0]);
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif');
-      croppedFilePath = generateUniqueFilename(croppedFilePath); // Generate a unique filename
-      await cropGeoTIFF(singleFilePath, croppedFilePath, bbox);
+      let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0])
+      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
+      croppedFilePath = generateUniqueFilename(croppedFilePath) // Generate a unique filename
+      await cropGeoTIFF(singleFilePath, croppedFilePath, bbox)
     }
 
-    await cleanupDownloadedFiles();
+    await cleanupDownloadedFiles()
 
-    console.log('Processing completed successfully.');
+    console.log('Processing completed successfully.')
   } catch (error) {
-    console.error('An error occurred during processing:', error.message);
+    console.error('An error occurred during processing:', error.message)
   }
-})();
+})()
