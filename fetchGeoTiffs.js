@@ -6,7 +6,7 @@ const  utmObj  = require('utm-latlng')
 
 // Define directories
 const DOWNLOAD_FOLDER = path.resolve(__dirname, 'downloads')
-
+const croppedFilePath = '/host/cropped/cropped.tif';
 
 // Ensure directory exists
 if (!fs.existsSync(DOWNLOAD_FOLDER)) {
@@ -131,7 +131,7 @@ function cropGeoTIFF(inputFilePath, outputFilePath, bbox) {
   })
 }
 
-// Function to delete all files in a given folder
+// Function to delete all files in a given folder without deleting the folder itself
 function deleteFilesInFolder(folderPath) {
   return new Promise((resolve, reject) => {
     fs.readdir(folderPath, (err, files) => {
@@ -153,16 +153,11 @@ function deleteFilesInFolder(folderPath) {
         })
       })
 
+      // Wait for all delete operations to finish
       Promise.all(deletePromises)
         .then(() => {
-          fs.rm(folderPath, { recursive: true }, (err) => {
-            if (err) {
-              console.error(`Failed to delete folder ${folderPath}: ${err.message}`)
-              return reject(err)
-            }
-            console.log(`Deleted folder ${folderPath}`)
-            resolve()
-          })
+          console.log(`Deleted all files in folder ${folderPath}, but kept the folder`)
+          resolve()
         })
         .catch(reject)
     })
@@ -242,14 +237,19 @@ async function cleanupDownloadedFiles() {
       let mergedFilePath = path.resolve(__dirname, 'merged.tif')
       mergedFilePath = generateUniqueFilename(mergedFilePath) // Generate a unique filename
       await mergeGeoTIFFs(mergedFilePath)
+      
+      const croppedDir = '/host/cropped'
+      if (!fs.existsSync(croppedDir)) {
+        fs.mkdirSync(croppedDir, { recursive: true }); // Create directory recursively
+      }
 
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
+      let croppedFilePath = path.resolve('/host/cropped/cropped.tif')
       croppedFilePath = generateUniqueFilename(croppedFilePath) // Generate a unique filename
       await cropGeoTIFF(mergedFilePath, croppedFilePath, bbox)
 
     } else if (files.length === 1) {
       let singleFilePath = path.join(DOWNLOAD_FOLDER, files[0])
-      let croppedFilePath = path.resolve(__dirname, 'cropped.tif')
+      let croppedFilePath = path.resolve('/host/cropped/cropped.tif')
       croppedFilePath = generateUniqueFilename(croppedFilePath) // Generate a unique filename
       await cropGeoTIFF(singleFilePath, croppedFilePath, bbox)
     }

@@ -28,6 +28,11 @@ Then run:
 npm start -- < paste arguments here >
 ```
 
+### Running in Docker container
+``` bash
+
+```
+
 The program will
 
 Download the specified GeoTIFF files.
