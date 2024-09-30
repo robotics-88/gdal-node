@@ -1,29 +1,40 @@
 # Use an official Node.js runtime as a parent image
 FROM node:16
 
-# Set the working directory inside the container
+FROM node:16
+
+# Set the working directory
 WORKDIR /app
 
-# Copy the package.json and package-lock.json into the working directory
-COPY package*.json ./
+# Install Miniconda
+RUN apt-get update && apt-get install -y wget && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    bash Miniconda3-latest-Linux-x86_64.sh -b -p /opt/conda && \
+    rm Miniconda3-latest-Linux-x86_64.sh
 
-# Install any needed dependencies
-RUN npm install
+# Set the PATH for Conda
+ENV PATH /opt/conda/bin:$PATH
 
-# Install GDAL for geospatial data processing
-RUN apt-get update && apt-get install -y \
-    gdal-bin \
-    python3-gdal \
-    && rm -rf /var/lib/apt/lists/*
+# Copy the environment.yml file and create the environment
+COPY environment.yml ./
+RUN conda env create -f environment.yml
 
-# Copy the rest of the application files
+# Activate the environment by modifying .bashrc
+RUN echo "source activate gdal_env" > ~/.bashrc
+
+# Set the PATH to include the activated environment
+ENV PATH /opt/conda/envs/gdal_env/bin:$PATH
+ENV PROJ_LIB /opt/conda/envs/gdal_env/share/proj
+
+
+# Install GDAL and any other dependencies
+RUN conda install -c conda-forge gdal
+
+# Copy your application code
 COPY . .
 
-# Make sure the downloads directory exists
+# Create downloads directory
 RUN mkdir -p downloads
 
-# Expose a port if needed (you can skip this if not using any network ports)
-# EXPOSE 3000
-
-# Define the command to run the app
+# Default command
 CMD ["npm", "start"]

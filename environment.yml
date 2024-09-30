@@ -1,0 +1,5 @@
+name: gdal_env
+dependencies:
+  - nodejs
+  - gdal
+  - python

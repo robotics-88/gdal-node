@@ -1,0 +1,12 @@
+version: '3'
+services:
+  geotiff_processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gdal-node-project:latest
+    container_name: geotiff_processor
+    volumes:
+      - ~/Downloads:/host/downloads
+      - ~/cropped:/host/cropped
+    entrypoint: npm start
