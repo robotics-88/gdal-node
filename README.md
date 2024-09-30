@@ -30,8 +30,20 @@ npm start -- < paste arguments here >
 
 ### Running in Docker container
 ``` bash
-
+docker-compose up --build
 ```
+This will take a minute or 2
+
+Then run the program with:
+``` bash
+docker-compose run geotiff_processor -- < paste arguments here >
+```
+
+ex:
+``` bash
+docker-compose run geotiff_processor -- -71.32028102874757 41.49938503474929 -71.32028102874757 41.51143878722848 -71.29290103912355 41.51143878722848 -71.29290103912355 41.4993850347
+```
+
 
 The program will
 
