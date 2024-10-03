@@ -33,8 +33,12 @@ RUN conda install -c conda-forge gdal
 # Copy your application code
 COPY . .
 
-# Create downloads directory
-RUN mkdir -p downloads
+# Create required directories during build
+RUN mkdir -p /app/downloads /host/cropped
+
+# Set downloadsFolder environment variable in case it's used in code
+ENV DOWNLOADS_FOLDER /app/downloads
+ENV CROPPED_DIR /host/cropped
 
 # Default command
 CMD ["npm", "start"]
