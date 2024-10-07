@@ -1,8 +1,6 @@
 # Use an official Node.js runtime as a parent image
 FROM node:16
 
-FROM node:16
-
 # Set the working directory
 WORKDIR /app
 
@@ -30,10 +28,10 @@ ENV PROJ_LIB /opt/conda/envs/gdal_env/share/proj
 # Install GDAL and any other dependencies
 RUN conda install -c conda-forge gdal
 
-
-
 # Copy your application code
 COPY . .
+
+RUN npm install
 
 # Create downloads directory
 RUN mkdir -p downloads
