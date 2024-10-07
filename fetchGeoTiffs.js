@@ -7,8 +7,8 @@ const fsExtra = require('fs-extra')
 
 // Define directories
 const DOWNLOAD_FOLDER = path.resolve(__dirname, 'downloads')
-const CROPPED_DIR = '/host/cropped';
-const downloadsFolder = '/host/downloads'; // This is mapped to the host's ~/Downloads
+const CROPPED_DIR = '/host/cropped'
+const downloadsFolder = '/host/downloads'
 
 // Ensure directories exist
 if (!fs.existsSync(DOWNLOAD_FOLDER)) {
