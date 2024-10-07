@@ -35,8 +35,6 @@ RUN conda install -c conda-forge gdal
 # Copy your application code
 COPY . .
 
-RUN npm install
-
 # Create downloads directory
 RUN mkdir -p downloads
 

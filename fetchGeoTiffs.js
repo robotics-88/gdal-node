@@ -10,14 +10,6 @@ const DOWNLOAD_FOLDER = path.resolve(__dirname, 'downloads')
 const CROPPED_DIR = '/host/cropped'
 const downloadsFolder = '/host/downloads'
 
-// Ensure directories exist
-if (!fs.existsSync(DOWNLOAD_FOLDER)) {
-  fs.mkdirSync(DOWNLOAD_FOLDER)
-}
-if (!fs.existsSync(CROPPED_DIR)) {
-  fs.mkdirSync(CROPPED_DIR, { recursive: true });
-}
-
 // Function to make the API request and get the GeoTIFF download URLs
 async function fetchGeoTIFFUrls(apiUrl) {
   try {
@@ -66,7 +58,7 @@ async function downloadGeoTIFF(url, outputPath) {
       })
 
       writer.on('error', (err) => {
-        console.error('Failed to download GeoTIFF:', err.message)
+        console.error('Failed to write GeoTIFF to disk:', err.message)
         reject(err)
       })
 
@@ -130,17 +122,17 @@ function cropGeoTIFF(inputFilePath, outputFilePath, bbox) {
 // Function to move cropped file to Downloads
 async function moveFileToDownloads(croppedFilePath) {
   if (!fs.existsSync(downloadsFolder)) {
-    console.error('Downloads folder is not available in the container.');
-    return;
+    console.error('Downloads folder is not available in the container.')
+    return
   }
 
-  const destinationPath = path.join(downloadsFolder, path.basename(croppedFilePath));
+  const destinationPath = path.join(downloadsFolder, path.basename(croppedFilePath))
 
   try {
-    await fsExtra.move(croppedFilePath, destinationPath);
-    console.log(`Moved cropped file to ${destinationPath}`);
+    await fsExtra.move(croppedFilePath, destinationPath)
+    console.log(`Moved cropped file to ${destinationPath}`)
   } catch (error) {
-    console.error(`Failed to move file to Downloads: ${error.message}`);
+    console.error(`Failed to move file to Downloads: ${error.message}`)
   }
 }
 
