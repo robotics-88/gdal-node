@@ -49,3 +49,9 @@ npm start -- -71.32028102874757 41.49938503474929 -71.32028102874757 41.51143878
 npm start -- -94.76806640625001 29.39216194937415 -94.93972778320312 29.419882024551534 -94.84016418457033 29.24754217580329
 ```
 
+##Refactors needed
+1. Investigate the necessary parameters.  We already ran into one area in ORegon that didn't have any of the 1mx1m DEMS so had to downgrade.  We can make this automatic.
+  - this leads to other complications since the types of files aren't all the same
+  -Don't assume the files are in UTM
+  -Don't assume there is only one, figure out the most recent and go from there
+  -Don't assume the UTM zone -- this is a simple calculation
